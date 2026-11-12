@@ -10,8 +10,14 @@ const errorHandler = require("./src/middleware/errorHandler");
 const app = express();
 
 // Middlewares
+// Allowed frontend origins: comma-separated FRONTEND_URL, else local dev + the deployed frontend.
+const allowedOrigins = (process.env.FRONTEND_URL || "http://localhost:5173,https://sweety-frontend.vercel.app")
+  .split(",")
+  .map((origin) => origin.trim().replace(/\/+$/, ""))
+  .filter(Boolean);
+
 app.use(cors({
-  origin: "http://localhost:5173",
+  origin: allowedOrigins,
   methods: ["GET", "POST", "PUT", "PATCH", "DELETE"],
   credentials: true
 }));
