@@ -3,6 +3,7 @@ const jwt = require("jsonwebtoken");
 const supabase = require("../../config/supabase");
 const AppError = require("../../utils/AppError");
 const { todayIn, isValidDateString } = require("../../utils/date");
+const { ROLES, roleName, toRoleId } = require("../../utils/roles");
 
 // bcrypt cost factor: 10 => 2^10 key-expansion rounds; a fresh random salt is generated per hash.
 const SALT_ROUNDS = 10;
@@ -11,8 +12,9 @@ const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const OPTIONAL_FIELDS = ["phone_number", "date_of_birth", "gender", "blood_group", "height_cm"];
 
 // Columns that are safe to return to clients (never select password_hash here).
+// `doctor` embeds the assigned doctor's public details via the users.assigned_doctor foreign key.
 const PUBLIC_COLUMNS =
-  "id, full_name, email, phone_number, date_of_birth, gender, blood_group, height_cm, created_at, updated_at";
+  "id, full_name, email, phone_number, date_of_birth, gender, blood_group, height_cm, role_id, assigned_doctor, created_at, updated_at, doctor:assigned_doctor(id, full_name, email)";
 
 const GENDERS = ["female", "male", "other", "prefer_not_to_say"];
 const BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "AB+", "AB-", "O+", "O-"];
@@ -36,9 +38,30 @@ const hashPassword = (password) => bcrypt.hash(password, SALT_ROUNDS);
 const comparePassword = (password, hash) => bcrypt.compare(password, hash);
 
 function generateToken(user) {
-  return jwt.sign({ sub: String(user.id), email: user.email }, getJwtSecret(), {
+  return jwt.sign({ sub: String(user.id), email: user.email, role_id: user.role_id }, getJwtSecret(), {
     expiresIn: process.env.JWT_EXPIRES_IN || "7d",
   });
+}
+
+// Adds the role name ("patient" / "doctor") to a user row before it is returned.
+const present = (user) => ({ ...user, role: roleName(user.role_id) });
+
+// Positive integer id or null.
+function toId(value) {
+  const n = typeof value === "string" && value.trim() !== "" ? Number(value) : value;
+  return Number.isInteger(n) && n > 0 ? n : null;
+}
+
+// A patient's assigned_doctor must point at an existing doctor account.
+async function assertDoctorExists(doctorId) {
+  const { data, error } = await supabase
+    .from("users")
+    .select("id")
+    .eq("id", doctorId)
+    .eq("role_id", ROLES.DOCTOR)
+    .maybeSingle();
+  if (error) throw error;
+  if (!data) throw new AuthError("Please choose a valid doctor", 400);
 }
 
 // Throws (JsonWebTokenError / TokenExpiredError) if invalid.
@@ -58,7 +81,17 @@ function validateRegisterInput(body = {}) {
     throw new AuthError(`Password must be at least ${MIN_PASSWORD_LENGTH} characters`, 400);
   }
 
-  const profile = { full_name, email };
+  // Role is required for everyone; patients must also choose their doctor.
+  const role_id = toRoleId(body.role_id);
+  if (!role_id) throw new AuthError("Please choose whether you are a patient or a doctor", 400);
+
+  let assigned_doctor = null;
+  if (role_id === ROLES.PATIENT) {
+    assigned_doctor = toId(body.assigned_doctor);
+    if (!assigned_doctor) throw new AuthError("Please choose your doctor", 400);
+  }
+
+  const profile = { full_name, email, role_id, assigned_doctor };
   for (const field of OPTIONAL_FIELDS) {
     if (body[field] !== undefined && body[field] !== "" && body[field] !== null) profile[field] = body[field];
   }
@@ -116,6 +149,9 @@ function validateProfileUpdate(body = {}) {
     if (body[field] === undefined) continue;
     changes[field] = body[field] === "" || body[field] === null ? null : body[field];
   }
+  if (body.role_id !== undefined) throw new AuthError("Role can't be changed", 400);
+  // Checked against the user's role (and the doctors table) in updateProfile.
+  if (body.assigned_doctor !== undefined) changes.assigned_doctor = toId(body.assigned_doctor);
 
   if (!Object.keys(changes).length) throw new AuthError("No changes to save", 400);
   validateOptionalFields(changes);
@@ -157,6 +193,7 @@ async function findUserById(id) {
 
 async function registerUser(body) {
   const { profile, password } = validateRegisterInput(body);
+  if (profile.role_id === ROLES.PATIENT) await assertDoctorExists(profile.assigned_doctor);
   const password_hash = await hashPassword(password);
 
   const { data, error } = await supabase
@@ -170,7 +207,7 @@ async function registerUser(body) {
     throw error;
   }
 
-  return { user: data, token: generateToken(data) };
+  return { user: present(data), token: generateToken(data) };
 }
 
 async function loginUser(body) {
@@ -183,18 +220,42 @@ async function loginUser(body) {
   }
 
   const { password_hash, ...user } = record;
-  return { user, token: generateToken(user) };
+  return { user: present(user), token: generateToken(user) };
 }
 
 async function getCurrentUser(userId) {
   const user = await findUserById(userId);
   if (!user) throw new AuthError("User not found", 404);
-  return user;
+  return present(user);
+}
+
+// GET /api/auth/me — also returns a fresh token when the caller's token carries a
+// stale/missing role, so the client can move the user to the right area.
+async function getSession(userId, tokenRoleId) {
+  const user = await getCurrentUser(userId);
+  return tokenRoleId === user.role_id ? { user } : { user, token: generateToken(user) };
+}
+
+// Used by the requireRole middleware (the DB is the source of truth for roles).
+async function getRoleId(userId) {
+  const { data, error } = await supabase.from("users").select("role_id").eq("id", userId).maybeSingle();
+  if (error) throw error;
+  if (!data) throw new AuthError("User not found", 404);
+  return data.role_id;
 }
 
 // PUT /api/auth/me — returns a fresh token because the JWT carries the email.
 async function updateProfile(userId, body) {
   const changes = validateProfileUpdate(body);
+
+  // Only patients have a doctor, and it can be changed but never removed.
+  if ("assigned_doctor" in changes) {
+    if ((await getRoleId(userId)) !== ROLES.PATIENT) {
+      throw new AuthError("Only patients can choose a doctor", 400);
+    }
+    if (!changes.assigned_doctor) throw new AuthError("Please choose your doctor", 400);
+    await assertDoctorExists(changes.assigned_doctor);
+  }
 
   const { data, error } = await supabase
     .from("users")
@@ -209,7 +270,7 @@ async function updateProfile(userId, body) {
   }
   if (!data) throw new AuthError("User not found", 404);
 
-  return { user: data, token: generateToken(data) };
+  return { user: present(data), token: generateToken(data) };
 }
 
 // PUT /api/auth/password
@@ -250,10 +311,12 @@ async function changePassword(userId, body = {}) {
 
 module.exports = {
   AuthError,
+  getSession,
   verifyToken,
   registerUser,
   loginUser,
   getCurrentUser,
+  getRoleId,
   updateProfile,
   changePassword,
 };

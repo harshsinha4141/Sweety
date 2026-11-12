@@ -14,7 +14,7 @@ export default function SelectField({ label, icon, error, hint, optional, classN
             id={id}
             aria-invalid={Boolean(error)}
             aria-describedby={describedBy}
-            className={`${fieldClasses({ hasIcon: Boolean(icon), hasError: Boolean(error), extraRight: true })} appearance-none`}
+            className={`${fieldClasses({ hasIcon: Boolean(icon), hasError: Boolean(error), extraRight: true })} themed-select appearance-none`}
             {...props}
           >
             <option value="">{placeholder}</option>

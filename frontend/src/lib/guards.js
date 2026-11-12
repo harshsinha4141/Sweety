@@ -1,5 +1,6 @@
 import { redirect } from '@tanstack/react-router'
 import { tokenStorage } from './api'
+import { homeFor, tokenRole } from './roles'
 
 // Only allow same-site paths like "/dashboard" (blocks "//evil.com" and absolute URLs).
 export function safeRedirect(value) {
@@ -15,9 +16,19 @@ export function requireAuth({ location }) {
   }
 }
 
-// beforeLoad guard for login/register: logged-in users go straight to the dashboard.
+// beforeLoad guard for one role's area: logged-in users of the other role go to their own home.
+const requireRole = (role) => (context) => {
+  requireAuth(context)
+  const current = tokenRole()
+  if (current !== role) throw redirect({ to: homeFor(current) })
+}
+
+export const requirePatient = requireRole('patient') // /dashboard/*
+export const requireDoctor = requireRole('doctor') // /doctor/*
+
+// beforeLoad guard for login/register: logged-in users go straight to their home page.
 export function requireGuest() {
   if (tokenStorage.get()) {
-    throw redirect({ to: '/dashboard' })
+    throw redirect({ to: homeFor(tokenRole()) })
   }
 }

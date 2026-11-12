@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { Menu, X } from 'lucide-react'
 import { useEffect, useState } from 'react'
 import { useAuth } from '../../auth/useAuth'
+import { homeFor, tokenRole } from '../../lib/roles'
 import Logo from '../Logo'
 import { buttonClasses } from '../ui/button-styles'
 
@@ -12,7 +13,8 @@ const NAV_LINKS = [
 ]
 
 export default function Navbar() {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, token } = useAuth()
+  const home = token ? homeFor(tokenRole()) : '/dashboard'
   const [open, setOpen] = useState(false)
   const [scrolled, setScrolled] = useState(false)
 
@@ -47,7 +49,7 @@ export default function Navbar() {
 
         <div className="hidden items-center gap-2 md:flex">
           {isAuthenticated ? (
-            <Link to="/dashboard" className={buttonClasses({ size: 'sm' })}>
+            <Link to={home} className={buttonClasses({ size: 'sm' })}>
               Go to dashboard
             </Link>
           ) : (
@@ -91,7 +93,7 @@ export default function Navbar() {
           </ul>
           <div className="mt-4 grid gap-2">
             {isAuthenticated ? (
-              <Link to="/dashboard" className={buttonClasses({ full: true })}>
+              <Link to={home} className={buttonClasses({ full: true })}>
                 Go to dashboard
               </Link>
             ) : (

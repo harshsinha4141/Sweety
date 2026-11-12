@@ -1,13 +1,11 @@
-import { Link, useNavigate } from '@tanstack/react-router'
-import { BellRing, ChartLine, ChevronDown, LayoutDashboard, List, LogOut, Plus, Settings } from 'lucide-react'
-import { useState } from 'react'
-import { toast } from 'react-toastify'
+import { Link } from '@tanstack/react-router'
+import { BellRing, ChartLine, LayoutDashboard, List, Plus, Settings, Stethoscope } from 'lucide-react'
 import { useAuth } from '../../auth/useAuth'
 import Logo from '../Logo'
 import Button from '../ui/Button'
 import { useDashboard } from './dashboard-context'
 import NotificationBell from './NotificationBell'
-import { useClickOutside } from './useClickOutside'
+import UserMenu from './UserMenu'
 
 const NAV = [
   { to: '/dashboard', label: 'Overview', icon: LayoutDashboard, exact: true },
@@ -17,17 +15,12 @@ const NAV = [
   { to: '/dashboard/settings', label: 'Settings', icon: Settings },
 ]
 
-const initials = (name = '') =>
-  name
-    .trim()
-    .split(/\s+/)
-    .slice(0, 2)
-    .map((part) => part[0]?.toUpperCase())
-    .join('') || 'S'
-
 // Sidebar (desktop) / bottom tabs (mobile) + top bar around every dashboard page.
 export default function AppShell({ children }) {
   const { openAdd } = useDashboard()
+  const { user } = useAuth()
+  // Accounts created before doctors existed have no doctor yet — prompt them to choose one.
+  const needsDoctor = user?.role === 'patient' && !user.assigned_doctor
 
   return (
     <div className="min-h-dvh bg-slate-50">
@@ -81,7 +74,25 @@ export default function AppShell({ children }) {
           </div>
         </header>
 
-        <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-6 lg:pb-12 lg:pt-8">{children}</main>
+        <main className="mx-auto max-w-6xl px-4 pb-28 pt-6 sm:px-6 lg:pb-12 lg:pt-8">
+          {needsDoctor && (
+            <div className="mb-6 flex flex-wrap items-center gap-3 rounded-2xl bg-amber-50 px-4 py-3 text-sm text-amber-900 ring-1 ring-amber-200">
+              <Stethoscope className="size-5 shrink-0 text-amber-600" aria-hidden="true" />
+              <p className="flex-1">
+                <span className="font-semibold">Choose your doctor.</span> Your doctor can review your reports once you
+                pick them.
+              </p>
+              <Link
+                to="/dashboard/settings"
+                hash="doctor"
+                className="rounded-lg bg-white px-3 py-1.5 font-semibold text-amber-800 ring-1 ring-amber-300 hover:bg-amber-100"
+              >
+                Choose doctor
+              </Link>
+            </div>
+          )}
+          {children}
+        </main>
       </div>
 
       {/* Floating add button + bottom tabs on phones */}
@@ -117,55 +128,3 @@ export default function AppShell({ children }) {
   )
 }
 
-function UserMenu() {
-  const { user, logout } = useAuth()
-  const navigate = useNavigate()
-  const [open, setOpen] = useState(false)
-  const ref = useClickOutside(open, () => setOpen(false))
-
-  async function handleLogout() {
-    setOpen(false)
-    await navigate({ to: '/' })
-    logout()
-    toast.info('You have been logged out.')
-  }
-
-  return (
-    <div ref={ref} className="relative">
-      <button
-        type="button"
-        onClick={() => setOpen((o) => !o)}
-        className="flex items-center gap-2 rounded-xl p-1 pr-2 transition hover:bg-slate-100 focus-visible:outline-2 focus-visible:outline-rose-500"
-        aria-label="Account menu"
-        aria-expanded={open}
-      >
-        <span className="grid size-8 place-items-center rounded-lg bg-linear-to-br from-rose-500 to-pink-600 text-xs font-bold text-white">
-          {initials(user?.full_name)}
-        </span>
-        <ChevronDown className="hidden size-4 text-slate-400 sm:block" aria-hidden="true" />
-      </button>
-      {open && (
-        <div className="absolute right-0 top-12 z-50 w-60 overflow-hidden rounded-2xl border border-slate-200 bg-white py-1.5 shadow-xl shadow-slate-900/10 animate-pop">
-          <div className="border-b border-slate-100 px-4 pb-3 pt-2">
-            <p className="truncate text-sm font-semibold text-slate-900">{user?.full_name ?? 'Loading…'}</p>
-            <p className="truncate text-xs text-slate-500">{user?.email}</p>
-          </div>
-          <Link
-            to="/dashboard/settings"
-            onClick={() => setOpen(false)}
-            className="flex items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
-          >
-            <Settings className="size-4 text-slate-400" aria-hidden="true" /> Settings
-          </Link>
-          <button
-            type="button"
-            onClick={handleLogout}
-            className="flex w-full items-center gap-2.5 px-4 py-2.5 text-sm text-slate-700 hover:bg-slate-50"
-          >
-            <LogOut className="size-4 text-slate-400" aria-hidden="true" /> Log out
-          </button>
-        </div>
-      )}
-    </div>
-  )
-}

@@ -35,7 +35,16 @@ export default function AuthProvider({ children }) {
     authService
       .me()
       .then((data) => {
-        if (!cancelled) setUser(data.user)
+        if (cancelled) return
+        setUser(data.user)
+        // The server re-issues the token when the saved one has a stale role
+        // (e.g. account changed to doctor): store it and re-run the route guards
+        // so the user is moved to their own area (/doctor or /dashboard).
+        if (data.token) {
+          tokenStorage.set(data.token)
+          setToken(data.token)
+          router.invalidate()
+        }
       })
       .catch((error) => {
         if (!cancelled && (error.status === 401 || error.status === 404)) clearSession()

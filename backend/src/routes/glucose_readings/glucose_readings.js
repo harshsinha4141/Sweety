@@ -1,10 +1,13 @@
 const express = require("express");
 const readingsController = require("../../controllers/glucose_readings/glucose_readings");
 const { requireAuth } = require("../../middleware/auth");
+const { requireRole } = require("../../middleware/requireRole");
+const { ROLES } = require("../../utils/roles");
 
 const router = express.Router();
 
-router.use(requireAuth);
+// Patients only — doctors view patient data through /api/doctor.
+router.use(requireAuth, requireRole(ROLES.PATIENT));
 
 router.get("/slots", readingsController.slots);
 router.post("/", readingsController.create);

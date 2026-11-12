@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as DashboardRouteImport } from './routes/dashboard'
+import { Route as DoctorRouteImport } from './routes/doctor'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as RegisterRouteImport } from './routes/register'
 import { Route as DashboardIndexRouteImport } from './routes/dashboard/index'
@@ -18,6 +19,9 @@ import { Route as DashboardReadingsRouteImport } from './routes/dashboard/readin
 import { Route as DashboardRemindersRouteImport } from './routes/dashboard/reminders'
 import { Route as DashboardReportsRouteImport } from './routes/dashboard/reports'
 import { Route as DashboardSettingsRouteImport } from './routes/dashboard/settings'
+import { Route as DoctorIndexRouteImport } from './routes/doctor/index'
+import { Route as DoctorSettingsRouteImport } from './routes/doctor/settings'
+import { Route as DoctorPatientsPatientIdRouteImport } from './routes/doctor/patients/$patientId'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -27,6 +31,11 @@ const IndexRoute = IndexRouteImport.update({
 const DashboardRoute = DashboardRouteImport.update({
   id: '/dashboard',
   path: '/dashboard',
+  getParentRoute: () => rootRouteImport,
+})
+const DoctorRoute = DoctorRouteImport.update({
+  id: '/doctor',
+  path: '/doctor',
   getParentRoute: () => rootRouteImport,
 })
 const LoginRoute = LoginRouteImport.update({
@@ -64,6 +73,21 @@ const DashboardSettingsRoute = DashboardSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => DashboardRoute,
 })
+const DoctorIndexRoute = DoctorIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => DoctorRoute,
+})
+const DoctorSettingsRoute = DoctorSettingsRouteImport.update({
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => DoctorRoute,
+})
+const DoctorPatientsPatientIdRoute = DoctorPatientsPatientIdRouteImport.update({
+  id: '/patients/$patientId',
+  path: '/patients/$patientId',
+  getParentRoute: () => DoctorRoute,
+})
 
 const DashboardRouteChildren = {
   DashboardReadingsRoute: DashboardReadingsRoute,
@@ -77,9 +101,19 @@ const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
   DashboardRouteChildren,
 )
 
+const DoctorRouteChildren = {
+  DoctorSettingsRoute: DoctorSettingsRoute,
+  DoctorIndexRoute: DoctorIndexRoute,
+  DoctorPatientsPatientIdRoute: DoctorPatientsPatientIdRoute,
+}
+
+const DoctorRouteWithChildren =
+  DoctorRoute._addFileChildren(DoctorRouteChildren)
+
 const rootRouteChildren = {
   IndexRoute: IndexRoute,
   DashboardRoute: DashboardRouteWithChildren,
+  DoctorRoute: DoctorRouteWithChildren,
   LoginRoute: LoginRoute,
   RegisterRoute: RegisterRoute,
 }

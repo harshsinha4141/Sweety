@@ -26,14 +26,23 @@ const SERIES = [
 
 // Line chart of every reading in `month` (YYYY-MM), up to `upTo` (YYYY-MM-DD) if given.
 // One line per time slot + the daily average, with the 70–180 mg/dl target band shaded.
-export default function MonthChart({ month, upTo, version = 0, height = 300 }) {
+// `fetchReadings(params)` defaults to the logged-in patient's readings; the doctor view passes
+// a patient-scoped loader (and remounts the chart with a `key` per patient).
+export default function MonthChart({
+  month,
+  upTo,
+  version = 0,
+  height = 300,
+  fetchReadings = readingsService.list,
+  emptyText = 'Your chart will appear here once you log a reading.',
+}) {
   const lastDay = upTo && upTo.startsWith(month) ? Number(upTo.slice(8, 10)) : daysInMonth(month)
   const to = `${month}-${String(lastDay).padStart(2, '0')}`
   const [hidden, setHidden] = useState(() => new Set())
   const [view, setView] = useState('chart')
 
   const { data, loading, error } = useAsync(
-    () => readingsService.list({ from: `${month}-01`, to, limit: MAX_PER_MONTH }),
+    () => fetchReadings({ from: `${month}-01`, to, limit: MAX_PER_MONTH }),
     `${month}:${to}:${version}`,
   )
 
@@ -71,7 +80,7 @@ export default function MonthChart({ month, upTo, version = 0, height = 300 }) {
       <EmptyState
         icon={ChartLine}
         title={`No readings in ${formatMonth(month)} yet`}
-        text="Your chart will appear here once you log a reading."
+        text={emptyText}
       />
     )
   }
