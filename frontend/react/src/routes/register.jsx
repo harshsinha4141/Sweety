@@ -8,6 +8,7 @@ import Button from '../components/ui/Button'
 import SelectField from '../components/ui/SelectField'
 import TextField from '../components/ui/TextField'
 import { requireGuest } from '../lib/guards'
+import { BLOOD_GROUP_OPTIONS, GENDER_OPTIONS } from '../lib/profile-options'
 
 export const Route = createFileRoute('/register')({
   beforeLoad: requireGuest,
@@ -17,13 +18,6 @@ export const Route = createFileRoute('/register')({
 const MIN_PASSWORD_LENGTH = 8
 const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
 
-const GENDER_OPTIONS = [
-  { value: 'female', label: 'Female' },
-  { value: 'male', label: 'Male' },
-  { value: 'other', label: 'Other' },
-  { value: 'prefer_not_to_say', label: 'Prefer not to say' },
-]
-const BLOOD_GROUP_OPTIONS = ['A+', 'A-', 'B+', 'B-', 'AB+', 'AB-', 'O+', 'O-'].map((g) => ({ value: g, label: g }))
 const OPTIONAL_FIELDS = ['phone_number', 'date_of_birth', 'gender', 'blood_group', 'height_cm']
 
 const EMPTY_FORM = {
