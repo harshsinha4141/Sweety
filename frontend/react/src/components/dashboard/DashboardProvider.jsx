@@ -6,8 +6,10 @@ import { slotLabel } from '../../lib/glucose'
 import {
   computeReminders,
   loadNotified,
+  loadRead,
   loadReminderSettings,
   saveNotified,
+  saveRead,
   saveReminderSettings,
   showBrowserNotification,
 } from '../../lib/reminders'
@@ -91,6 +93,28 @@ export default function DashboardProvider({ children }) {
     [reportForToday, reminderSettings, loggedSlots, now],
   )
 
+  // Read / unread state of the bell's notifications (per user, per day).
+  const readStoreKey = `${userKey}:${today}`
+  const [readOverride, setReadOverride] = useState({})
+  const readSlots = useMemo(
+    () => readOverride[readStoreKey] ?? (userKey == null ? [] : loadRead(userKey, today)),
+    [readOverride, readStoreKey, userKey, today],
+  )
+  const markRead = useCallback(
+    (slots) => {
+      if (userKey == null) return
+      const next = [...new Set([...readSlots, ...slots])]
+      if (next.length === readSlots.length) return
+      saveRead(userKey, today, next)
+      setReadOverride((current) => ({ ...current, [readStoreKey]: next }))
+    },
+    [readSlots, readStoreKey, today, userKey],
+  )
+  const unreadCount = useMemo(
+    () => reminders.due.filter((r) => !readSlots.includes(r.slot)).length,
+    [reminders.due, readSlots],
+  )
+
   // Notify once per slot per day when a reminder becomes due.
   useEffect(() => {
     if (userKey == null || !reminders.due.length) return
@@ -123,6 +147,9 @@ export default function DashboardProvider({ children }) {
       reminderSettings,
       updateReminderSettings,
       reminders,
+      readSlots,
+      markRead,
+      unreadCount,
     }),
     [
       today,
@@ -137,6 +164,9 @@ export default function DashboardProvider({ children }) {
       reminderSettings,
       updateReminderSettings,
       reminders,
+      readSlots,
+      markRead,
+      unreadCount,
     ],
   )
 
