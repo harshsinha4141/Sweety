@@ -48,6 +48,11 @@ export const saveReminderSettings = (userId, settings) => writeJSON(settingsKey(
 export const loadNotified = (userId, date) => readJSON(notifiedKey(userId, date), [])
 export const saveNotified = (userId, date, slots) => writeJSON(notifiedKey(userId, date), slots)
 
+// Slots whose bell notification the user has read today (Gmail-style unread → read).
+const readKey = (userId, date) => `sweety_read_${userId}_${date}`
+export const loadRead = (userId, date) => readJSON(readKey(userId, date), [])
+export const saveRead = (userId, date, slots) => writeJSON(readKey(userId, date), slots)
+
 const minutesOf = (hhmm) => {
   const [h, m] = hhmm.split(':').map(Number)
   return h * 60 + m
