@@ -40,4 +40,24 @@ async function me(req, res) {
   }
 }
 
-module.exports = { register, login, me };
+// PUT /api/auth/me  (protected)
+async function updateMe(req, res) {
+  try {
+    const data = await authService.updateProfile(req.user.id, req.body);
+    return res.status(200).json({ success: true, message: "Profile updated", data });
+  } catch (error) {
+    return sendError(res, error);
+  }
+}
+
+// PUT /api/auth/password  (protected)
+async function changePassword(req, res) {
+  try {
+    await authService.changePassword(req.user.id, req.body);
+    return res.status(200).json({ success: true, message: "Password changed successfully" });
+  } catch (error) {
+    return sendError(res, error);
+  }
+}
+
+module.exports = { register, login, me, updateMe, changePassword };

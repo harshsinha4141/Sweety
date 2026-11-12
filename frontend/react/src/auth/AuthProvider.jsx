@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { tokenStorage } from '../lib/api'
+import { toast } from 'react-toastify'
+import { setUnauthorizedHandler, tokenStorage } from '../lib/api'
 import { router } from '../router'
 import { authService } from '../services/auth'
 import { AuthContext } from './auth-context'
@@ -16,6 +17,16 @@ export default function AuthProvider({ children }) {
     setUser(null)
     router.invalidate() // re-run route guards so protected pages redirect
   }, [])
+
+  // Any authenticated request that comes back 401 ends the session.
+  useEffect(() => {
+    setUnauthorizedHandler(() => {
+      if (!tokenStorage.get()) return
+      clearSession()
+      toast.info('Your session has ended. Please log in again.', { toastId: 'session-ended' })
+    })
+    return () => setUnauthorizedHandler(null)
+  }, [clearSession])
 
   // Restore the session from a saved token once on startup.
   useEffect(() => {
@@ -63,9 +74,11 @@ export default function AuthProvider({ children }) {
       loadingUser,
       login,
       register,
+      // After a profile update: store the re-issued token and the fresh user.
+      updateSession: saveSession,
       logout: clearSession,
     }),
-    [user, token, loadingUser, login, register, clearSession],
+    [user, token, loadingUser, login, register, saveSession, clearSession],
   )
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
