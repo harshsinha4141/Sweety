@@ -1,6 +1,7 @@
 const express = require("express");
 const cors = require("cors");
 require("dotenv").config();
+const supabase = require("./src/config/supabase");
 
 const app = express();
 
@@ -14,6 +15,29 @@ app.get("/", (req, res) => {
     success: true,
     message: "Welcome to Sweety API!"
   });
+});
+
+app.get("/test-db",async(req,res)=>{
+    try {
+    const { data, error } = await supabase
+      .from("profiles")
+      .select("*")
+      .limit(1);
+
+    if (error) throw error;
+
+    res.json({
+      success: true,
+      message: "Supabase connected successfully!",
+      data
+    });
+
+  } catch (error) {
+    res.status(500).json({
+      success: false,
+      message: error.message
+    });
+  }
 });
 
 // Server
