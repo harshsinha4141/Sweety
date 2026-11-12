@@ -1,4 +1,7 @@
-const API_URL = (import.meta.env.VITE_API_URL || 'http://localhost:3000').replace(/\/$/, '')
+// Backend base URL: VITE_API_URL if set, else the deployed backend in production builds,
+// else the local backend in dev.
+const DEFAULT_API_URL = import.meta.env.PROD ? 'https://sweety-sigma.vercel.app' : 'http://localhost:3000'
+const API_URL = (import.meta.env.VITE_API_URL || DEFAULT_API_URL).replace(/\/$/, '')
 const TOKEN_KEY = 'sweety_token'
 
 // localStorage can throw (private mode, blocked storage) — never let that crash the app.
