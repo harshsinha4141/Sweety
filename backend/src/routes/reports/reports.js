@@ -13,5 +13,6 @@ router.get("/", reportsController.all);
 router.get("/daily", reportsController.daily);
 router.get("/month-to-date", reportsController.monthToDate);
 router.get("/monthly", reportsController.monthly);
+router.post("/reset-cache", reportsController.resetCache);
 
 module.exports = router;

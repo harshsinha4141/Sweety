@@ -15,6 +15,7 @@ router.use(requireAuth, requireRole(ROLES.DOCTOR));
 router.get("/patients", doctorController.patients);
 router.get("/patients/:patientId", doctorController.patient);
 router.get("/patients/:patientId/reports", doctorController.patientReports);
+router.post("/patients/:patientId/reports/reset-cache", doctorController.resetPatientReportsCache);
 router.get("/patients/:patientId/readings", doctorController.patientReadings);
 
 module.exports = router;

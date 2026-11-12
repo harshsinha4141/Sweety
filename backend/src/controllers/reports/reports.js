@@ -13,7 +13,18 @@ const handle = (serviceFn) => async (req, res) => {
   }
 };
 
+// POST /api/reports/reset-cache — "hard reset": drop this patient's cached reports.
+async function resetCache(req, res) {
+  try {
+    const data = await reportsService.resetCache(req.user.id);
+    return res.status(200).json({ success: true, message: "Report cache cleared", data });
+  } catch (error) {
+    return sendError(res, error);
+  }
+}
+
 module.exports = {
+  resetCache,
   all: handle(reportsService.allReports), // GET /api/reports
   daily: handle(reportsService.dailyReport), // GET /api/reports/daily
   monthToDate: handle(reportsService.monthToDateReport), // GET /api/reports/month-to-date

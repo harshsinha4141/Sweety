@@ -134,4 +134,17 @@ async function patientReadings(doctorId, patientId, query) {
   return readingsService.listReadings(patient.id, query);
 }
 
-module.exports = { listDoctors, listPatients, getPatient, patientReports, patientReadings };
+// Clears the cached reports of an assigned patient (cache only; the patient's data is untouched).
+async function resetPatientReportsCache(doctorId, patientId) {
+  const patient = await getAssignedPatient(doctorId, patientId);
+  return reportsService.resetCache(patient.id);
+}
+
+module.exports = {
+  listDoctors,
+  listPatients,
+  getPatient,
+  patientReports,
+  patientReadings,
+  resetPatientReportsCache,
+};
