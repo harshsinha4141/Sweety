@@ -33,8 +33,8 @@ async function login(req, res) {
 // GET /api/auth/me  (protected)
 async function me(req, res) {
   try {
-    const user = await authService.getCurrentUser(req.user.id);
-    return res.status(200).json({ success: true, data: { user } });
+    const data = await authService.getSession(req.user.id, req.user.role_id);
+    return res.status(200).json({ success: true, data });
   } catch (error) {
     return sendError(res, error);
   }

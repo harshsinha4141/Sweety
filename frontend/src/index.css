@@ -61,10 +61,28 @@
   --toastify-toast-bd-radius: 14px;
   --toastify-toast-min-height: 60px;
   --toastify-text-color-light: #0f172a;
-  --toastify-color-success: #10b981;
-  --toastify-color-error: #e11d48;
+  --toastify-color-success: #e11d48;
+  --toastify-color-error: #dc2626;
   --toastify-color-warning: #f59e0b;
-  --toastify-color-info: #6366f1;
+  --toastify-color-info: #e11d48;
+
+  /* Icons: set directly — the library's defaults resolve on :root, so overriding
+     --toastify-color-* here alone doesn't recolor them. */
+  --toastify-icon-color-success: #e11d48;
+  --toastify-icon-color-info: #e11d48;
+  --toastify-icon-color-warning: #f59e0b;
+  --toastify-icon-color-error: #dc2626;
+
+  /* Progress bar (auto-close timer) and loading spinner: rose brand color for every toast type */
+  --toastify-color-progress-light: #e11d48;
+  --toastify-color-progress-dark: #e11d48;
+  --toastify-color-progress-info: #e11d48;
+  --toastify-color-progress-success: #e11d48;
+  --toastify-color-progress-warning: #e11d48;
+  --toastify-color-progress-error: #e11d48;
+  --toastify-color-progress-bgo: 0.15;
+  --toastify-spinner-color: #e11d48;
+  --toastify-spinner-color-empty-area: #ffe4e6; /* rose-100 */
 }
 .Toastify .Toastify__toast {
   border: 1px solid #e2e8f0;
@@ -74,7 +92,56 @@
   font-weight: 500;
   line-height: 1.4;
 }
-.Toastify .Toastify__toast--success { border-left: 4px solid #10b981; }
-.Toastify .Toastify__toast--error { border-left: 4px solid #e11d48; }
+.Toastify .Toastify__toast--success { border-left: 4px solid #e11d48; }
+.Toastify .Toastify__toast--error { border-left: 4px solid #dc2626; }
 .Toastify .Toastify__toast--warning { border-left: 4px solid #f59e0b; }
-.Toastify .Toastify__toast--info { border-left: 4px solid #6366f1; }
+.Toastify .Toastify__toast--info { border-left: 4px solid #e11d48; }
+
+/* ---------- form controls in the rose theme ---------- */
+/* Native checkboxes, radios, range sliders and date pickers use the brand color. */
+:root {
+  accent-color: #e11d48;
+}
+
+/* <select> dropdowns: replace the browser's blue highlight with rose
+   (customizable select — Chrome/Edge 135+; other browsers keep the native list). */
+@supports (appearance: base-select) {
+  select.themed-select,
+  select.themed-select::picker(select) {
+    appearance: base-select;
+  }
+  select.themed-select::picker-icon {
+    display: none; /* SelectField draws its own chevron */
+  }
+  select.themed-select::picker(select) {
+    margin-block: 6px;
+    padding: 4px;
+    border: 1px solid #e2e8f0;
+    border-radius: 0.75rem;
+    background: #fff;
+    box-shadow: 0 18px 40px -18px rgb(15 23 42 / 0.35);
+  }
+  select.themed-select option {
+    padding: 8px 12px;
+    border-radius: 0.5rem;
+    color: #334155;
+    font-size: 0.875rem;
+  }
+  select.themed-select option::checkmark {
+    display: none;
+  }
+  select.themed-select option:hover,
+  select.themed-select option:focus-visible {
+    background: #fff1f2; /* rose-50 */
+    color: #be123c; /* rose-700 */
+    outline: none;
+  }
+  select.themed-select option:checked {
+    background: #e11d48; /* rose-600 */
+    color: #fff;
+    font-weight: 600;
+  }
+  select.themed-select option:disabled {
+    color: #94a3b8;
+  }
+}

@@ -7,6 +7,7 @@ import AuthLayout from '../components/AuthLayout'
 import Button from '../components/ui/Button'
 import TextField from '../components/ui/TextField'
 import { requireGuest, safeRedirect } from '../lib/guards'
+import { homeFor } from '../lib/roles'
 
 export const Route = createFileRoute('/login')({
   validateSearch: (search) => ({ redirect: safeRedirect(search.redirect) }),
@@ -14,7 +15,12 @@ export const Route = createFileRoute('/login')({
   component: LoginPage,
 })
 
-const firstName = (fullName = '') => fullName.trim().split(/\s+/)[0] || 'there'
+// "Priya Sharma" → "Priya"; "Dr. Anil Kapoor" → "Dr. Anil" (keep a title with the name).
+function firstName(fullName = '') {
+  const parts = fullName.trim().split(/\s+/).filter(Boolean)
+  if (!parts.length) return 'there'
+  return /^(dr|doctor)\.?$/i.test(parts[0]) && parts[1] ? `${parts[0]} ${parts[1]}` : parts[0]
+}
 
 function validate({ email, password }) {
   const errors = {}
@@ -46,7 +52,8 @@ function LoginPage() {
     try {
       const user = await login(form.email.trim(), form.password)
       toast.success(`Welcome back, ${firstName(user.full_name)}!`)
-      router.history.push(redirect || '/dashboard')
+      // A redirect into the other role's area is bounced home by that area's guard.
+      router.history.push(redirect || homeFor(user.role))
     } catch (error) {
       toast.error(error.message)
       setSubmitting(false)

@@ -9,7 +9,14 @@ const STATS = [
 ]
 
 // One report (daily / month-to-date / monthly): range label + highest, lowest, average, count.
-export default function ReportCard({ title, report, icon: Icon, emptyIcon, accent = 'rose' }) {
+export default function ReportCard({
+  title,
+  report,
+  icon: Icon,
+  emptyIcon,
+  accent = 'rose',
+  emptyText = 'Log a reading and it will show up here.',
+}) {
   const accents = {
     rose: 'bg-rose-50 text-rose-600',
     violet: 'bg-violet-50 text-violet-600',
@@ -35,7 +42,7 @@ export default function ReportCard({ title, report, icon: Icon, emptyIcon, accen
           ))}
         </div>
       ) : report.is_empty ? (
-        <EmptyState compact icon={emptyIcon} title={report.empty_message} text="Log a reading and it will show up here." />
+        <EmptyState compact icon={emptyIcon} title={report.empty_message} text={emptyText} />
       ) : (
         <dl className="mt-5 grid grid-cols-2 gap-3">
           {STATS.map(({ key, label, icon: StatIcon, unit }) => (
