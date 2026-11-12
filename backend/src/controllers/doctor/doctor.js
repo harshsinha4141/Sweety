@@ -58,4 +58,14 @@ async function patientReadings(req, res) {
   }
 }
 
-module.exports = { list, patients, patient, patientReports, patientReadings };
+// POST /api/doctor/patients/:patientId/reports/reset-cache
+async function resetPatientReportsCache(req, res) {
+  try {
+    const data = await doctorService.resetPatientReportsCache(req.user.id, req.params.patientId);
+    return res.status(200).json({ success: true, message: "Report cache cleared", data });
+  } catch (error) {
+    return sendError(res, error);
+  }
+}
+
+module.exports = { list, patients, patient, patientReports, patientReadings, resetPatientReportsCache };

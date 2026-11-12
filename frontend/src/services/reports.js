@@ -4,4 +4,6 @@ import { apiRequest, toQuery } from '../lib/api'
 export const reportsService = {
   all: (date) => apiRequest(`/api/reports${toQuery({ date })}`, { auth: true }),
   daily: (date) => apiRequest(`/api/reports/daily${toQuery({ date })}`, { auth: true }),
+  // "Hard reset": clears the server-side (Redis) cache of my reports.
+  resetCache: () => apiRequest('/api/reports/reset-cache', { method: 'POST', auth: true }),
 }

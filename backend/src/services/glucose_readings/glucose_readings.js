@@ -9,6 +9,7 @@ const {
   slotLabel,
   decorate,
 } = require("./glucose");
+const reportsCache = require("../reports/reportsCache");
 
 const TABLE = "glucose_reading";
 const COLUMNS = "id, reading_date, time_slot, glucose_value, created_at, updated_at";
@@ -122,6 +123,7 @@ async function createReading(userId, body = {}, tz) {
     .select(COLUMNS)
     .single();
   if (error) throw mapDbError(error, input.time_slot);
+  await reportsCache.invalidate(userId); // this patient's cached reports are now stale
   return decorate(data);
 }
 
@@ -216,6 +218,7 @@ async function updateReading(userId, id, body = {}, tz) {
     .select(COLUMNS)
     .single();
   if (error) throw mapDbError(error, input.time_slot);
+  await reportsCache.invalidate(userId);
   return decorate(data);
 }
 
@@ -229,6 +232,7 @@ async function deleteReading(userId, id) {
     .select("id");
   if (error) throw error;
   if (!data.length) throw new AppError("Reading not found.", 404);
+  await reportsCache.invalidate(userId);
   return { id: readingId };
 }
 

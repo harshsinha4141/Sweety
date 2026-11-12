@@ -15,6 +15,7 @@ import {
 import { useCallback, useState } from 'react'
 import MonthChart from '../../../components/charts/MonthChart'
 import ReadingRow from '../../../components/readings/ReadingRow'
+import HardResetButton from '../../../components/reports/HardResetButton'
 import ReportCard from '../../../components/reports/ReportCard'
 import Button from '../../../components/ui/Button'
 import Card from '../../../components/ui/Card'
@@ -50,6 +51,8 @@ function PatientReportsPage() {
   const selectedMonth = date.slice(0, 7)
   const [chartMonth, setChartMonth] = useState('selected')
   const month = chartMonth === 'selected' ? selectedMonth : previousMonth(selectedMonth)
+  // Bumped by "Hard reset" so the month chart reloads too.
+  const [resetCount, setResetCount] = useState(0)
   const fetchReadings = useCallback((params) => doctorService.readings(patientId, params), [patientId])
 
   // Not assigned to this doctor (or doesn't exist): the API answers 404 for both.
@@ -90,7 +93,7 @@ function PatientReportsPage() {
           </h2>
           <p className="mt-1 text-sm text-slate-500">Highest, lowest and average readings for the selected date.</p>
         </div>
-        <div className="flex items-end gap-2">
+        <div className="flex flex-wrap items-end gap-2">
           <TextField
             label="Selected date"
             type="date"
@@ -104,6 +107,13 @@ function PatientReportsPage() {
               Today
             </Button>
           )}
+          <HardResetButton
+            onReset={() => doctorService.resetReportsCache(patientId)}
+            onDone={() => {
+              reportsState.reload()
+              setResetCount((n) => n + 1)
+            }}
+          />
         </div>
       </div>
 
@@ -175,7 +185,7 @@ function PatientReportsPage() {
           }
         >
           <MonthChart
-            key={patientId}
+            key={`${patientId}:${resetCount}`}
             month={month}
             upTo={chartMonth === 'selected' ? date : undefined}
             fetchReadings={fetchReadings}

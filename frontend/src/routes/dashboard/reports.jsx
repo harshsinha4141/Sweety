@@ -4,6 +4,7 @@ import { useState } from 'react'
 import MonthChart from '../../components/charts/MonthChart'
 import { useDashboard } from '../../components/dashboard/dashboard-context'
 import ReadingRow from '../../components/readings/ReadingRow'
+import HardResetButton from '../../components/reports/HardResetButton'
 import ReportCard from '../../components/reports/ReportCard'
 import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
@@ -23,7 +24,7 @@ export const Route = createFileRoute('/dashboard/reports')({
 function ReportsPage() {
   const { date: searchDate } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
-  const { today, version, openAdd, openEdit, requestDelete } = useDashboard()
+  const { today, version, refresh, openAdd, openEdit, requestDelete } = useDashboard()
   const date = searchDate && searchDate <= today ? searchDate : today
 
   const { data, error, loading } = useAsync(() => reportsService.all(date), `${date}:${version}`)
@@ -42,7 +43,7 @@ function ReportsPage() {
           <h1 className="text-2xl font-extrabold tracking-tight text-slate-900 sm:text-3xl">Reports</h1>
           <p className="mt-1 text-slate-500">Highest, lowest and average readings for the selected date.</p>
         </div>
-        <div className="flex items-end gap-2">
+        <div className="flex flex-wrap items-end gap-2">
           <TextField
             label="Selected date"
             type="date"
@@ -56,6 +57,7 @@ function ReportsPage() {
               Today
             </Button>
           )}
+          <HardResetButton onReset={reportsService.resetCache} onDone={refresh} />
         </div>
       </div>
 

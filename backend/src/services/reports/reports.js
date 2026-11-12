@@ -2,6 +2,7 @@ const supabase = require("../../config/supabase");
 const AppError = require("../../utils/AppError");
 const { todayIn, isValidDateString, daysInMonth } = require("../../utils/date");
 const { round1, decorate } = require("../glucose_readings/glucose");
+const reportsCache = require("./reportsCache");
 
 const TABLE = "glucose_reading";
 const COLUMNS = "id, reading_date, time_slot, glucose_value, created_at, updated_at";
@@ -104,26 +105,49 @@ async function buildReport(type, userId, date) {
   return report;
 }
 
+/* ---------- cached access ---------- */
+
+// Builds the requested report types for one date, reading from / filling the Redis cache.
+// → { reports: { [type]: report }, cache: "hit" | "partial" | "miss" | "off" }
+async function getReports(userId, types, date) {
+  const cached = await reportsCache.read(userId, types, date);
+  const reports = { ...(cached?.reports ?? {}) };
+  const missing = types.filter((type) => !reports[type]);
+
+  const built = await Promise.all(missing.map((type) => buildReport(type, userId, date)));
+  const fresh = Object.fromEntries(missing.map((type, i) => [type, built[i]]));
+  if (cached) await reportsCache.write(userId, cached.version, date, fresh);
+  Object.assign(reports, fresh);
+
+  let cache = "off";
+  if (cached) cache = missing.length === 0 ? "hit" : missing.length === types.length ? "miss" : "partial";
+  console.log(
+    `[cache] ${cache.toUpperCase()} reports user=${userId} date=${date} ` +
+      `cached=[${types.filter((t) => !missing.includes(t)).join(",")}] built=[${missing.join(",")}]`
+  );
+  return { reports, cache };
+}
+
+async function singleReport(type, userId, query, tz) {
+  const date = resolveSelectedDate(query.date, tz);
+  const { reports, cache } = await getReports(userId, [type], date);
+  return { ...reports[type], cache };
+}
+
 /* ---------- use cases ---------- */
 
-const dailyReport = async (userId, query = {}, tz) =>
-  buildReport("daily", userId, resolveSelectedDate(query.date, tz));
-
-const monthToDateReport = async (userId, query = {}, tz) =>
-  buildReport("month_to_date", userId, resolveSelectedDate(query.date, tz));
-
-const monthlyReport = async (userId, query = {}, tz) =>
-  buildReport("monthly", userId, resolveSelectedDate(query.date, tz));
+const dailyReport = (userId, query = {}, tz) => singleReport("daily", userId, query, tz);
+const monthToDateReport = (userId, query = {}, tz) => singleReport("month_to_date", userId, query, tz);
+const monthlyReport = (userId, query = {}, tz) => singleReport("monthly", userId, query, tz);
 
 // All three reports for one selected date.
 async function allReports(userId, query = {}, tz) {
   const date = resolveSelectedDate(query.date, tz);
-  const [daily, month_to_date, monthly] = await Promise.all([
-    buildReport("daily", userId, date),
-    buildReport("month_to_date", userId, date),
-    buildReport("monthly", userId, date),
-  ]);
-  return { date, daily, month_to_date, monthly };
+  const { reports, cache } = await getReports(userId, ["daily", "month_to_date", "monthly"], date);
+  return { date, daily: reports.daily, month_to_date: reports.month_to_date, monthly: reports.monthly, cache };
 }
 
-module.exports = { dailyReport, monthToDateReport, monthlyReport, allReports };
+// "Hard reset" of this patient's cached reports (the next request rebuilds them from Supabase).
+const resetCache = (userId) => reportsCache.reset(userId);
+
+module.exports = { dailyReport, monthToDateReport, monthlyReport, allReports, resetCache };
