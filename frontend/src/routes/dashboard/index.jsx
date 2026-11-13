@@ -1,12 +1,12 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { ArrowDown, ArrowRight, ArrowUp, BellRing, CalendarRange, Clock, Pencil, Plus, Sigma, Trash2 } from 'lucide-react'
+import { ArrowDown, ArrowRight, ArrowUp, BellRing, CalendarRange, CircleSlash, Clock, Hourglass, Lock, Pencil, Plus, Sigma, Trash2 } from 'lucide-react'
 import { useAuth } from '../../auth/useAuth'
 import MonthChart from '../../components/charts/MonthChart'
 import { useDashboard } from '../../components/dashboard/dashboard-context'
 import StatusBadge from '../../components/readings/StatusBadge'
 import Card from '../../components/ui/Card'
 import { formatClock, formatDateLong, formatMonth, formatTime, greeting } from '../../lib/dates'
-import { MAX_READINGS_PER_DAY, SLOTS } from '../../lib/glucose'
+import { MAX_READINGS_PER_DAY, SLOTS, formatHour, slotState, slotWindow } from '../../lib/glucose'
 import { useAsync } from '../../lib/useAsync'
 import { reportsService } from '../../services/reports'
 
@@ -71,6 +71,7 @@ function OverviewPage() {
                 slot={slot}
                 reading={entry}
                 loading={!todayReport}
+                state={slotState(slot.value, today, now)}
                 due={due}
                 reminderTime={reminderSettings.enabled && reminderSettings.slots[slot.value].enabled ? reminderSettings.slots[slot.value].time : null}
                 onAdd={() => openAdd({ reading_date: today, time_slot: slot.value })}
@@ -148,7 +149,7 @@ function StatTile({ label, icon: Icon, value, loading }) {
   )
 }
 
-function SlotCard({ slot, reading, loading, due, reminderTime, onAdd }) {
+function SlotCard({ slot, reading, loading, state, due, reminderTime, onAdd }) {
   const { openEdit, requestDelete } = useDashboard()
   const Icon = slot.icon
 
@@ -167,6 +168,9 @@ function SlotCard({ slot, reading, loading, due, reminderTime, onAdd }) {
             </span>
             {slot.label}
           </span>
+          {state !== 'open' && (
+            <Lock className="size-3.5 text-slate-300" aria-label="Locked: this slot has closed" />
+          )}
         </div>
         <p className="mt-3 text-3xl font-extrabold tabular-nums text-slate-900">
           {reading.glucose_value}
@@ -178,6 +182,7 @@ function SlotCard({ slot, reading, loading, due, reminderTime, onAdd }) {
             <Clock className="size-3" aria-hidden="true" /> {formatTime(reading.created_at)}
           </span>
         </div>
+        {state === 'open' && (
         <div className="absolute right-2 top-2 flex gap-0.5 opacity-100 transition sm:opacity-0 sm:group-focus-within:opacity-100 sm:group-hover:opacity-100">
           <button
             type="button"
@@ -196,6 +201,36 @@ function SlotCard({ slot, reading, loading, due, reminderTime, onAdd }) {
             <Trash2 className="size-3.5" />
           </button>
         </div>
+        )}
+      </div>
+    )
+  }
+
+  // Not logged and the window isn't open: upcoming (opens later today) or missed (closed).
+  if (state !== 'open') {
+    const missed = state === 'missed'
+    return (
+      <div
+        className={`flex min-h-[132px] flex-col items-start justify-between rounded-2xl border-2 border-dashed p-4 ${
+          missed ? 'border-slate-200 bg-slate-50' : 'border-slate-200'
+        }`}
+      >
+        <span className="flex items-center gap-2 text-sm font-semibold text-slate-500">
+          <span className="grid size-8 place-items-center rounded-lg bg-slate-100 text-slate-400">
+            <Icon className="size-4" aria-hidden="true" />
+          </span>
+          {slot.label}
+        </span>
+        <span className="text-sm text-slate-500">{slotWindow(slot.value)}</span>
+        {missed ? (
+          <span className="inline-flex items-center gap-1 rounded-full bg-red-50 px-2 py-0.5 text-xs font-semibold text-red-700 ring-1 ring-red-600/15">
+            <CircleSlash className="size-3.5" aria-hidden="true" /> Missed
+          </span>
+        ) : (
+          <span className="inline-flex items-center gap-1 text-sm font-medium text-slate-500">
+            <Hourglass className="size-4" aria-hidden="true" /> Opens at {formatHour(slot.start)}
+          </span>
+        )}
       </div>
     )
   }
@@ -217,10 +252,11 @@ function SlotCard({ slot, reading, loading, due, reminderTime, onAdd }) {
       <span className="text-sm text-slate-500">
         {due ? (
           <span className="font-medium text-amber-700">Due since {formatClock(due.time)}</span>
-        ) : reminderTime ? (
-          `Reminder at ${formatClock(reminderTime)}`
         ) : (
-          'Not logged yet'
+          <>
+            Open now · closes at {formatHour(slot.end)}
+            {reminderTime && <span className="block text-xs text-slate-400">Reminder at {formatClock(reminderTime)}</span>}
+          </>
         )}
       </span>
       <span className="inline-flex items-center gap-1 text-sm font-semibold text-rose-600">

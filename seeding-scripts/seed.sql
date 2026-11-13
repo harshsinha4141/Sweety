@@ -45,10 +45,10 @@ with profile(email, offset_mgdl) as (values
   ('mohit.gupta@sweety.test',   25)
 ),
 slots(time_slot, base, at) as (values
-  (0, 100, time '07:30'),  -- Morning (fasting)
-  (1, 150, time '10:00'),  -- After breakfast
-  (2, 155, time '14:30'),  -- After lunch
-  (3, 145, time '21:00')   -- After dinner
+  (0, 100, time '07:30'),  -- Before breakfast (6–10 AM)
+  (1, 150, time '10:00'),  -- After breakfast (10 AM–2 PM)
+  (2, 155, time '14:30'),  -- After lunch (2–6 PM)
+  (3, 145, time '21:00')   -- After dinner (6–10 PM)
 ),
 days as (
   select d::date as reading_date

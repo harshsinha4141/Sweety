@@ -1,22 +1,53 @@
 import { Coffee, Moon, Sunrise, UtensilsCrossed } from 'lucide-react'
+import { toISODate } from './dates'
 
 export const MAX_READINGS_PER_DAY = 4
 export const MIN_VALUE = 40
 export const MAX_VALUE = 600
 
 // time_slot values stored in the database (glucose_reading.time_slot).
+// start/end = the slot's window in local time (hours, end exclusive) — same as the backend.
+// A slot can be logged only today while its window is open; after that it's missed for good.
 export const SLOTS = [
-  { value: 0, label: 'Morning (fasting)', short: 'Fasting', icon: Sunrise, color: '#f59e0b' },
-  { value: 1, label: 'After breakfast', short: 'Breakfast', icon: Coffee, color: '#0ea5e9' },
-  { value: 2, label: 'After lunch', short: 'Lunch', icon: UtensilsCrossed, color: '#8b5cf6' },
-  { value: 3, label: 'After dinner', short: 'Dinner', icon: Moon, color: '#e11d48' },
+  { value: 0, label: 'Before breakfast', short: 'Fasting', icon: Sunrise, color: '#f59e0b', start: 6, end: 10 },
+  { value: 1, label: 'After breakfast', short: 'Breakfast', icon: Coffee, color: '#0ea5e9', start: 10, end: 14 },
+  { value: 2, label: 'After lunch', short: 'Lunch', icon: UtensilsCrossed, color: '#8b5cf6', start: 14, end: 18 },
+  { value: 3, label: 'After dinner', short: 'Dinner', icon: Moon, color: '#e11d48', start: 18, end: 22 },
 ]
+
+// 6 → "6:00 AM", 14 → "2:00 PM"
+export const formatHour = (hour) => `${hour % 12 || 12}:00 ${hour < 12 ? 'AM' : 'PM'}`
+
+// "6:00 AM – 10:00 AM"
+export const slotWindow = (slot) => `${formatHour(SLOTS[slot].start)} – ${formatHour(SLOTS[slot].end)}`
+
+// The slot open right now, or null (10 PM – 6 AM has none).
+export const currentSlot = (now = new Date()) =>
+  SLOTS.find((s) => now.getHours() >= s.start && now.getHours() < s.end)?.value ?? null
+
+// The next slot to open later today, or null.
+export const nextSlot = (now = new Date()) => SLOTS.find((s) => now.getHours() < s.start) ?? null
+
+// 'open' | 'upcoming' | 'missed' for a slot on a date (YYYY-MM-DD), at `now`.
+export function slotState(slot, date, now = new Date()) {
+  const today = toISODate(now)
+  if (date < today) return 'missed'
+  if (date > today) return 'upcoming'
+  const hour = now.getHours()
+  if (hour < SLOTS[slot].start) return 'upcoming'
+  if (hour >= SLOTS[slot].end) return 'missed'
+  return 'open'
+}
+
+// Saved readings can be edited / deleted only while their slot is still open.
+export const isReadingEditable = (reading, now = new Date()) =>
+  slotState(reading.time_slot, reading.reading_date, now) === 'open'
 
 export const SLOT_OPTIONS = SLOTS.map(({ value, label }) => ({ value, label }))
 
 export const slotLabel = (slot) => SLOTS[slot]?.label ?? 'Unknown slot'
 
-// "an After lunch", "a Morning (fasting)"
+// "an After lunch", "a Before breakfast"
 const withArticle = (label) => `${/^[aeiou]/i.test(label) ? 'an' : 'a'} ${label}`
 
 // Exact messages from the product spec (the backend returns the same ones).
@@ -28,6 +59,13 @@ export const MESSAGES = {
   futureDate: 'Date cannot be in the future.',
   dateRequired: 'Please select a date.',
   slotRequired: 'Please select a time slot.',
+  noSlotOpen: (now = new Date()) => {
+    const next = nextSlot(now)
+    return next
+      ? `No slot is open right now. ${next.label} opens at ${formatHour(next.start)}.`
+      : `No slot is open right now. ${SLOTS[0].label} opens tomorrow at ${formatHour(SLOTS[0].start)}.`
+  },
+  locked: (slot) => `This reading is locked: its time slot (${slotWindow(slot)}) has closed.`,
 }
 
 // Client-side check mirroring the API rules. `takenSlots` = slots already used on that date

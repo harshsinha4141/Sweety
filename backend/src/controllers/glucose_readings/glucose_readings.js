@@ -6,7 +6,7 @@ const sendError = require("../../utils/sendError");
 
 // GET /api/readings/slots
 function slots(req, res) {
-  return res.status(200).json({ success: true, data: { slots: readingsService.listSlots() } });
+  return res.status(200).json({ success: true, data: readingsService.listSlots(req.get("x-timezone")) });
 }
 
 // POST /api/readings
@@ -57,7 +57,7 @@ async function update(req, res) {
 // DELETE /api/readings/:id
 async function remove(req, res) {
   try {
-    const data = await readingsService.deleteReading(req.user.id, req.params.id);
+    const data = await readingsService.deleteReading(req.user.id, req.params.id, req.get("x-timezone"));
     return res.status(200).json({ success: true, message: "Reading deleted", data });
   } catch (error) {
     return sendError(res, error);

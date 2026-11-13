@@ -7,7 +7,7 @@ import Button from '../../components/ui/Button'
 import Card from '../../components/ui/Card'
 import Toggle from '../../components/ui/Toggle'
 import { formatClock } from '../../lib/dates'
-import { SLOTS } from '../../lib/glucose'
+import { SLOTS, slotWindow } from '../../lib/glucose'
 import { DEFAULT_REMINDERS, notificationSupport, showBrowserNotification } from '../../lib/reminders'
 
 export const Route = createFileRoute('/dashboard/reminders')({
@@ -76,7 +76,7 @@ function RemindersPage() {
         </div>
       </Card>
 
-      <Card title="Reminder times" subtitle="You'll be reminded only if that slot isn't logged yet.">
+      <Card title="Reminder times" subtitle="Each slot can only be logged during its window. You'll be reminded only if that slot isn't logged yet.">
         <ul className="divide-y divide-slate-100">
           {SLOTS.map((slot, i) => {
             const Icon = slot.icon
@@ -91,13 +91,22 @@ function RemindersPage() {
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-slate-800">{slot.label}</p>
-                  <p className="text-xs text-slate-500">Default {formatClock(DEFAULT_REMINDERS.slots[i].time)}</p>
+                  <p className="text-xs text-slate-500">
+                    Open {slotWindow(slot.value)} · default {formatClock(DEFAULT_REMINDERS.slots[i].time)}
+                  </p>
                 </div>
                 <input
                   type="time"
                   value={s.time}
+                  min={`${String(slot.start).padStart(2, '0')}:00`}
+                  max={`${String(slot.end - 1).padStart(2, '0')}:59`}
                   disabled={!settings.enabled || !s.enabled}
-                  onChange={(e) => e.target.value && setSlot(i, { time: e.target.value })}
+                  onChange={(e) => {
+                    // Keep the reminder inside the slot's window (a reminder outside it can't be acted on).
+                    const value = e.target.value
+                    const hour = Number(value.slice(0, 2))
+                    if (value && hour >= slot.start && hour < slot.end) setSlot(i, { time: value })
+                  }}
                   aria-label={`${slot.label} reminder time`}
                   className="rounded-xl border border-slate-200 bg-white px-3 py-2 text-sm text-slate-800 shadow-sm outline-none transition focus:border-rose-400 focus:ring-4 focus:ring-rose-100 disabled:opacity-50"
                 />

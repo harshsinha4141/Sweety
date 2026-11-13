@@ -1,12 +1,15 @@
 const supabase = require("../../config/supabase");
 const AppError = require("../../utils/AppError");
-const { todayIn, isValidDateString, daysBetween } = require("../../utils/date");
+const { todayIn, nowIn, isValidDateString, daysBetween } = require("../../utils/date");
 const {
   MAX_READINGS_PER_DAY,
   MIN_VALUE,
   MAX_VALUE,
   SLOTS,
   slotLabel,
+  formatHour,
+  slotWindow,
+  slotAtHour,
   decorate,
 } = require("./glucose");
 const reportsCache = require("../reports/reportsCache");
@@ -19,7 +22,7 @@ const MAX_LIMIT = 200; // a full month is at most 31 × 4 = 124 readings (used b
 
 /* ---------- validation ---------- */
 
-// "an After lunch", "a Morning (fasting)"
+// "an After lunch", "a Before breakfast"
 const withArticle = (label) => `${/^[aeiou]/i.test(label) ? "an" : "a"} ${label}`;
 
 const isBlank = (v) => v === undefined || v === null || (typeof v === "string" && v.trim() === "");
@@ -69,6 +72,36 @@ function validateReadingInput(body, tz) {
   };
 }
 
+/* ---------- time windows ---------- */
+
+// A slot can be logged only today, while its window is open (patient's local time).
+// Past dates and closed windows are missed for good; future windows aren't open yet.
+function assertSlotOpen(date, slot, tz) {
+  const now = nowIn(tz);
+  const { label, start, end } = SLOTS[slot];
+  if (date < now.date) {
+    throw new AppError("Missed readings can't be logged for past dates.", 400);
+  }
+  if (now.hour < start) {
+    throw new AppError(`The ${label} slot opens at ${formatHour(start)}.`, 400);
+  }
+  if (now.hour >= end) {
+    throw new AppError(`The ${label} slot closed at ${formatHour(end)} (open ${slotWindow(slot)}). Missed readings can't be logged.`, 400);
+  }
+}
+
+// Saved readings can be changed or deleted only while their slot's window is still open.
+function assertReadingEditable(reading, tz) {
+  const now = nowIn(tz);
+  const { start, end } = SLOTS[reading.time_slot];
+  if (reading.reading_date !== now.date || now.hour < start || now.hour >= end) {
+    throw new AppError(
+      `This reading is locked: its time slot (${slotWindow(reading.time_slot)}) has closed.`,
+      400
+    );
+  }
+}
+
 /* ---------- data access (always scoped by userId) ---------- */
 
 async function findOwnReading(userId, id) {
@@ -115,6 +148,7 @@ function mapDbError(error, slot) {
 
 async function createReading(userId, body = {}, tz) {
   const input = validateReadingInput(body, tz);
+  assertSlotOpen(input.reading_date, input.time_slot, tz);
   await assertSlotAvailable(userId, input.reading_date, input.time_slot);
 
   const { data, error } = await supabase
@@ -196,6 +230,7 @@ async function getReading(userId, id) {
 async function updateReading(userId, id, body = {}, tz) {
   const readingId = validateId(id);
   const existing = await findOwnReading(userId, readingId);
+  assertReadingEditable(existing, tz);
 
   const fields = ["glucose_value", "reading_date", "time_slot"];
   if (!fields.some((f) => body[f] !== undefined)) {
@@ -205,6 +240,7 @@ async function updateReading(userId, id, body = {}, tz) {
   const merged = { ...existing };
   for (const f of fields) if (body[f] !== undefined) merged[f] = body[f];
   const input = validateReadingInput(merged, tz);
+  assertSlotOpen(input.reading_date, input.time_slot, tz); // a moved reading must land in an open slot
 
   if (input.reading_date !== existing.reading_date || input.time_slot !== existing.time_slot) {
     await assertSlotAvailable(userId, input.reading_date, input.time_slot, readingId);
@@ -222,8 +258,9 @@ async function updateReading(userId, id, body = {}, tz) {
   return decorate(data);
 }
 
-async function deleteReading(userId, id) {
+async function deleteReading(userId, id, tz) {
   const readingId = validateId(id);
+  assertReadingEditable(await findOwnReading(userId, readingId), tz);
   const { data, error } = await supabase
     .from(TABLE)
     .delete()
@@ -236,7 +273,21 @@ async function deleteReading(userId, id) {
   return { id: readingId };
 }
 
-const listSlots = () => SLOTS.map(({ time_slot, label }) => ({ time_slot, label }));
+// Slots with their windows, plus which one is open right now for this patient (null between 10 PM and 6 AM).
+function listSlots(tz) {
+  const now = nowIn(tz);
+  return {
+    today: now.date,
+    current_slot: slotAtHour(now.hour),
+    slots: SLOTS.map(({ time_slot, label, start, end }) => ({
+      time_slot,
+      label,
+      start: `${String(start).padStart(2, "0")}:00`,
+      end: `${String(end).padStart(2, "0")}:00`,
+      window: slotWindow(time_slot),
+    })),
+  };
+}
 
 module.exports = {
   createReading,

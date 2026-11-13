@@ -11,6 +11,7 @@ import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
 import TextField from '../../components/ui/TextField'
 import { formatDate, formatMonth, previousMonth } from '../../lib/dates'
+import { currentSlot, isReadingEditable } from '../../lib/glucose'
 import { useAsync } from '../../lib/useAsync'
 import { reportsService } from '../../services/reports'
 
@@ -24,7 +25,7 @@ export const Route = createFileRoute('/dashboard/reports')({
 function ReportsPage() {
   const { date: searchDate } = Route.useSearch()
   const navigate = useNavigate({ from: Route.fullPath })
-  const { today, version, refresh, openAdd, openEdit, requestDelete } = useDashboard()
+  const { today, now, version, refresh, openAdd, openEdit, requestDelete } = useDashboard()
   const date = searchDate && searchDate <= today ? searchDate : today
 
   const { data, error, loading } = useAsync(() => reportsService.all(date), `${date}:${version}`)
@@ -81,9 +82,12 @@ function ReportsPage() {
           title="Daily readings"
           subtitle={formatDate(date)}
           action={
-            <Button size="sm" variant="secondary" onClick={() => openAdd({ reading_date: date })}>
-              <Plus className="size-4" aria-hidden="true" /> Add
-            </Button>
+            // Only today's open slot can be logged (missed slots can't be filled in later).
+            date === today && currentSlot(now) !== null ? (
+              <Button size="sm" variant="secondary" onClick={() => openAdd()}>
+                <Plus className="size-4" aria-hidden="true" /> Add
+              </Button>
+            ) : null
           }
           bodyClassName="pt-2!"
         >
@@ -103,7 +107,12 @@ function ReportsPage() {
           ) : (
             <ul className="divide-y divide-slate-100">
               {reports.daily.readings.map((r) => (
-                <ReadingRow key={r.id} reading={r} onEdit={openEdit} onDelete={requestDelete} />
+                <ReadingRow
+                  key={r.id}
+                  reading={r}
+                  onEdit={isReadingEditable(r, now) ? openEdit : undefined}
+                  onDelete={isReadingEditable(r, now) ? requestDelete : undefined}
+                />
               ))}
             </ul>
           )}
