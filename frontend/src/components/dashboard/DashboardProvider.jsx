@@ -176,7 +176,6 @@ export default function DashboardProvider({ children }) {
       <ReadingModal
         open={editor.open}
         reading={editor.reading}
-        defaults={editor.defaults}
         onClose={closeEditor}
         onSaved={refresh}
       />

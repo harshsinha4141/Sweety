@@ -30,6 +30,23 @@ function todayIn(tz) {
   }).format(new Date());
 }
 
+// Current local date and hour in the given time zone → { date: "YYYY-MM-DD", hour: 0–23 }.
+function nowIn(tz) {
+  const parts = Object.fromEntries(
+    new Intl.DateTimeFormat("en-CA", {
+      timeZone: resolveTimeZone(tz),
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      hourCycle: "h23",
+    })
+      .formatToParts(new Date())
+      .map((p) => [p.type, p.value])
+  );
+  return { date: `${parts.year}-${parts.month}-${parts.day}`, hour: Number(parts.hour) };
+}
+
 // Strict YYYY-MM-DD that is a real calendar date (rejects 2026-02-30).
 function isValidDateString(value) {
   if (typeof value !== "string" || !DATE_REGEX.test(value)) return false;
@@ -48,6 +65,7 @@ const daysBetween = (from, to) =>
 module.exports = {
   resolveTimeZone,
   todayIn,
+  nowIn,
   isValidDateString,
   isValidMonthString,
   daysInMonth,

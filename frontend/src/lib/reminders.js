@@ -1,4 +1,5 @@
-import { SLOTS } from './glucose'
+import { toISODate } from './dates'
+import { SLOTS, slotState } from './glucose'
 
 // Reminder preferences live in this browser (per user). Reminders fire while Sweety is open in a tab.
 
@@ -58,16 +59,20 @@ const minutesOf = (hhmm) => {
   return h * 60 + m
 }
 
-// Splits today's enabled reminders into due (time passed, slot not logged) and upcoming.
+// Splits today's enabled reminders into due (reminder time passed, slot open and not logged)
+// and upcoming. Slots whose window has closed are missed and can't be logged, so they're dropped.
 export function computeReminders(settings, loggedSlots, now = new Date()) {
   if (!settings.enabled) return { due: [], upcoming: [] }
   const nowMinutes = now.getHours() * 60 + now.getMinutes()
+  const today = toISODate(now)
   const due = []
   const upcoming = []
   settings.slots.forEach((slot, i) => {
     if (!slot.enabled || loggedSlots.includes(i)) return
+    const state = slotState(i, today, now)
+    if (state === 'missed') return
     const item = { slot: i, label: SLOTS[i].label, time: slot.time }
-    if (minutesOf(slot.time) <= nowMinutes) due.push(item)
+    if (state === 'open' && minutesOf(slot.time) <= nowMinutes) due.push(item)
     else upcoming.push(item)
   })
   upcoming.sort((a, b) => minutesOf(a.time) - minutesOf(b.time))

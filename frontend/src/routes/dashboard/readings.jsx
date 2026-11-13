@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { CalendarDays, ChevronLeft, ChevronRight, Droplet, Pencil, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react'
+import { CalendarDays, ChevronLeft, ChevronRight, Droplet, Lock, Pencil, Plus, SlidersHorizontal, Trash2, X } from 'lucide-react'
 import { useState } from 'react'
 import { useDashboard } from '../../components/dashboard/dashboard-context'
 import StatusBadge from '../../components/readings/StatusBadge'
@@ -8,7 +8,7 @@ import Card from '../../components/ui/Card'
 import EmptyState from '../../components/ui/EmptyState'
 import TextField from '../../components/ui/TextField'
 import { formatDate, formatDateShort, formatTime } from '../../lib/dates'
-import { SLOTS } from '../../lib/glucose'
+import { SLOTS, isReadingEditable, slotWindow } from '../../lib/glucose'
 import { useAsync } from '../../lib/useAsync'
 import { readingsService } from '../../services/readings'
 
@@ -185,7 +185,16 @@ function ReadingsPage() {
   )
 }
 
+// Edit / delete only while the reading's slot is still open; afterwards it's locked.
 function RowActions({ reading, onEdit, onDelete }) {
+  if (!isReadingEditable(reading)) {
+    return (
+      <div className="flex justify-end p-2 text-slate-300" title={`Locked — slot closed (${slotWindow(reading.time_slot)})`}>
+        <Lock className="size-4" aria-hidden="true" />
+        <span className="sr-only">Locked: this reading's time slot has closed</span>
+      </div>
+    )
+  }
   return (
     <div className="flex justify-end gap-0.5">
       <button
