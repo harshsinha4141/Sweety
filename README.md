@@ -162,3 +162,9 @@ All endpoints return `{ success, message?, data? }`.
 | frontend | `npm run dev` | Vite dev server |
 | frontend | `npm run build` | Production build into `dist/` |
 | frontend | `npm run lint` | ESLint |
+
+## Notes
+
+- **Pull requests:** every feature was built on its own branch and merged into `main` through a pull request.
+- **Deployment:** the frontend (https://sweety-frontend.vercel.app) and the backend (https://sweety-sigma.vercel.app) are both deployed on Vercel.
+- **Cloud services:** the live app uses a cloud PostgreSQL database on Supabase and a cloud Redis cache on Redis Cloud.
